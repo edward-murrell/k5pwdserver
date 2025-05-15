@@ -24,6 +24,7 @@ func Setup(krbConfig *config.Config) *gin.Engine {
 	})
 
 	passwordHandler := handler.NewPasswordHandler(krbConfig)
+	router.GET("/api/realms", passwordHandler.GetRealms)
 	router.POST("/api/change-password", passwordHandler.ChangePassword)
 
 	return router

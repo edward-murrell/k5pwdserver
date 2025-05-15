@@ -118,6 +118,21 @@
                         autocomplete="username"
                     >
                 </div>
+                <div class="form-group">
+                    <label for="realm">Realm:</label>
+                    <select
+                            id="realm"
+                            v-model="selectedRealm"
+                            required
+                            class="form-input"
+                    >
+                        <option value="">Select a realm</option>
+                        <option v-for="realm in realms" :key="realm" :value="realm">
+                            {{ realm }}
+                        </option>
+                    </select>
+                </div>
+
 
                 <div class="form-group">
                     <label for="oldPassword">Current Password:</label>
@@ -165,7 +180,6 @@
             </form>
         </div>
     </div>
-
     <script>
         const { createApp } = Vue
 
@@ -178,20 +192,40 @@
                     confirmPassword: '',
                     message: '',
                     messageType: '',
-                    isLoading: false
+                    isLoading: false,
+                    realms: [],
+                    selectedRealm: '',
+                    defaultRealm: ''
                 }
+            },
+            async created() {
+                await this.loadRealms()
             },
             computed: {
                 isValid() {
                     return this.username &&
-                           this.oldPassword &&
-                           this.newPassword &&
-                           this.confirmPassword &&
-                           this.newPassword === this.confirmPassword &&
-                           !this.isLoading
+                        this.oldPassword &&
+                        this.newPassword &&
+                        this.confirmPassword &&
+                        this.selectedRealm &&
+                        this.newPassword === this.confirmPassword &&
+                        !this.isLoading
                 }
             },
             methods: {
+                async loadRealms() {
+                    try {
+                        const response = await fetch('http://localhost:8080/api/realms')
+                        const data = await response.json()
+                        this.realms = data.realms
+                        this.defaultRealm = data.default_realm
+                        this.selectedRealm = this.defaultRealm // Set default realm
+                    } catch (error) {
+                        this.message = 'Error loading realms'
+                        this.messageType = 'error'
+                        console.error('Error:', error)
+                    }
+                },
                 async changePassword() {
                     if (!this.isValid) return
 
@@ -207,7 +241,8 @@
                             body: JSON.stringify({
                                 username: this.username,
                                 oldPassword: this.oldPassword,
-                                newPassword: this.newPassword
+                                newPassword: this.newPassword,
+                                realm: this.selectedRealm
                             })
                         })
 
@@ -234,9 +269,12 @@
                     this.oldPassword = ''
                     this.newPassword = ''
                     this.confirmPassword = ''
+                    this.selectedRealm = this.defaultRealm // Reset to default realm
                 }
             }
         }).mount('#app')
     </script>
+
+
 </body>
 </html>

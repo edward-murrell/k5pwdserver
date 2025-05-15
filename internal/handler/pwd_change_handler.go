@@ -19,6 +19,31 @@ func NewPasswordHandler(cfg *config.Config) *PasswordHandler {
 	}
 }
 
+// Add this new method to the existing PasswordHandler struct
+
+func (h *PasswordHandler) GetRealms(c *gin.Context) {
+	realms := make([]string, 0)
+
+	// Get all configured realms
+	for _, realm := range h.krbConfig.Realms {
+		realms = append(realms, realm.Realm)
+	}
+
+	// If no realms are configured, return an error
+	if len(realms) == 0 {
+		c.JSON(http.StatusInternalServerError, model.Response{
+			Success: false,
+			Message: "No Kerberos realms configured",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.RealmsResponse{
+		Realms:       realms,
+		DefaultRealm: h.krbConfig.LibDefaults.DefaultRealm,
+	})
+}
+
 func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	var req model.PasswordChangeRequest
 	if err := c.BindJSON(&req); err != nil {
@@ -29,10 +54,16 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
+	// Use provided realm or fall back to default realm
+	realm := req.Realm
+	if realm == "" {
+		realm = h.krbConfig.LibDefaults.DefaultRealm
+	}
+
 	// Create a new client instance with the user's current credentials
 	cl := client.NewClientWithPassword(
 		req.Username,
-		h.krbConfig.LibDefaults.DefaultRealm,
+		realm,
 		req.OldPassword,
 		h.krbConfig,
 	)
@@ -69,4 +100,5 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		Success: true,
 		Message: "Password changed successfully",
 	})
+
 }
