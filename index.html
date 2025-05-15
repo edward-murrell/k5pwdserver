@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerberos Password Change</title>
+    <!-- Vue.js CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .password-change {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .password-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 14px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .form-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .submit-btn {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="password-change">
+            <h2>Change Kerberos Password</h2>
+            <form @submit.prevent="changePassword" class="password-form">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        v-model="username" 
+                        required
+                        class="form-input"
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="oldPassword">Current Password:</label>
+                    <input 
+                        type="password" 
+                        id="oldPassword" 
+                        v-model="oldPassword" 
+                        required
+                        class="form-input"
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="newPassword">New Password:</label>
+                    <input 
+                        type="password" 
+                        id="newPassword" 
+                        v-model="newPassword" 
+                        required
+                        class="form-input"
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password:</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        v-model="confirmPassword" 
+                        required
+                        class="form-input"
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <button type="submit" class="submit-btn" :disabled="!isValid">
+                    Change Password
+                </button>
+
+                <div v-if="message" :class="['message', messageType]">
+                    {{ message }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    username: '',
+                    oldPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                    message: '',
+                    messageType: '',
+                    isLoading: false
+                }
+            },
+            computed: {
+                isValid() {
+                    return this.username &&
+                           this.oldPassword &&
+                           this.newPassword &&
+                           this.confirmPassword &&
+                           this.newPassword === this.confirmPassword &&
+                           !this.isLoading
+                }
+            },
+            methods: {
+                async changePassword() {
+                    if (!this.isValid) return
+
+                    this.isLoading = true
+                    this.message = ''
+
+                    try {
+                        const response = await fetch('http://localhost:8080/api/change-password', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                username: this.username,
+                                oldPassword: this.oldPassword,
+                                newPassword: this.newPassword
+                            })
+                        })
+
+                        const data = await response.json()
+
+                        if (data.success) {
+                            this.message = 'Password changed successfully!'
+                            this.messageType = 'success'
+                            this.resetForm()
+                        } else {
+                            this.message = data.message || 'Failed to change password'
+                            this.messageType = 'error'
+                        }
+                    } catch (error) {
+                        this.message = 'Error connecting to server'
+                        this.messageType = 'error'
+                        console.error('Error:', error)
+                    } finally {
+                        this.isLoading = false
+                    }
+                },
+                resetForm() {
+                    this.username = ''
+                    this.oldPassword = ''
+                    this.newPassword = ''
+                    this.confirmPassword = ''
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
