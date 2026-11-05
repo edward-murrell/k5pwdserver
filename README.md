@@ -17,8 +17,16 @@ Use `-listen host:port` to change the address.
 It serves the password change form at `/` (embedded from
 `internal/server/web/index.html`), so open `http://<host>:8080/` in a browser.
 
-The server speaks plain HTTP; put TLS in front of it for anything beyond
-localhost.
+The server speaks plain HTTP by default. Don't expose plain HTTP beyond
+localhost, because passwords cross the network. To serve HTTPS directly, pass
+a PEM certificate and key:
+
+```sh
+go run ./cmd/pwdserver -listen :8443 -tls-cert cert.pem -tls-key key.pem
+```
+
+The server reloads the certificate when either file changes, so renewals need
+no restart. You can also run it on localhost behind a TLS proxy.
 
 ## API
 
