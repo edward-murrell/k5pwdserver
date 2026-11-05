@@ -14,6 +14,13 @@ go run ./cmd/pwdserver
 
 The server reads realms and KDCs from `/etc/krb5.conf` and listens on `:8080`.
 Use `-listen host:port` to change the address.
+
+By default users can pick any realm in `krb5.conf`. To limit them, pass a
+comma-separated list. Realm names are case-sensitive.
+
+```sh
+go run ./cmd/pwdserver -realms EXAMPLE.COM,OTHER.ORG
+```
 It serves the password change form at `/` (embedded from
 `internal/server/web/index.html`), so open `http://<host>:8080/` in a browser.
 
@@ -30,10 +37,10 @@ no restart. You can also run it on localhost behind a TLS proxy.
 
 ## API
 
-- `GET /api/realms` – configured realms and the default realm.
+- `GET /api/realms` – allowed realms and the default realm.
 - `POST /api/change-password` – JSON body:
   `{"username", "realm", "oldPassword", "newPassword"}`.
   `realm` is optional and defaults to `default_realm`.
   Returns 200 on success, 401 for wrong current credentials, 400 if the new
-  password fails the KDC's password policy, 415 if the request isn't
-  `application/json`, and 500 for other errors.
+  password fails the KDC's password policy or the realm isn't allowed, 415 if
+  the request isn't `application/json`, and 500 for other errors.

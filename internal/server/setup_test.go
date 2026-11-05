@@ -12,7 +12,7 @@ import (
 
 func TestIndexPage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := Setup(&config.Config{})
+	router := Setup(&config.Config{}, Options{})
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))

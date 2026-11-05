@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/edward-murrell/k8init/internal/kpasswd"
 	"github.com/edward-murrell/k8init/internal/model"
@@ -12,24 +13,47 @@ import (
 )
 
 type PasswordHandler struct {
-	krbConfig *config.Config
+	krbConfig     *config.Config
+	allowedRealms []string
 }
 
-func NewPasswordHandler(cfg *config.Config) *PasswordHandler {
+// NewPasswordHandler returns a handler for the given Kerberos config. If
+// allowedRealms is not empty, only those realms are offered and accepted.
+func NewPasswordHandler(cfg *config.Config, allowedRealms []string) *PasswordHandler {
 	return &PasswordHandler{
-		krbConfig: cfg,
+		krbConfig:     cfg,
+		allowedRealms: allowedRealms,
 	}
 }
 
-// Add this new method to the existing PasswordHandler struct
-
-func (h *PasswordHandler) GetRealms(c *gin.Context) {
-	realms := make([]string, 0)
-
-	// Get all configured realms
+// realms returns the allowed realms, or every realm in krb5.conf if no limit is set.
+func (h *PasswordHandler) realms() []string {
+	if len(h.allowedRealms) > 0 {
+		return h.allowedRealms
+	}
+	realms := make([]string, 0, len(h.krbConfig.Realms))
 	for _, realm := range h.krbConfig.Realms {
 		realms = append(realms, realm.Realm)
 	}
+	return realms
+}
+
+// defaultRealm returns krb5.conf's default realm. If that realm isn't allowed,
+// it returns the first allowed realm.
+func (h *PasswordHandler) defaultRealm() string {
+	def := h.krbConfig.LibDefaults.DefaultRealm
+	if len(h.allowedRealms) == 0 || h.isAllowed(def) {
+		return def
+	}
+	return h.allowedRealms[0]
+}
+
+func (h *PasswordHandler) isAllowed(realm string) bool {
+	return len(h.allowedRealms) == 0 || slices.Contains(h.allowedRealms, realm)
+}
+
+func (h *PasswordHandler) GetRealms(c *gin.Context) {
+	realms := h.realms()
 
 	// If no realms are configured, return an error
 	if len(realms) == 0 {
@@ -42,7 +66,7 @@ func (h *PasswordHandler) GetRealms(c *gin.Context) {
 
 	c.JSON(http.StatusOK, model.RealmsResponse{
 		Realms:       realms,
-		DefaultRealm: h.krbConfig.LibDefaults.DefaultRealm,
+		DefaultRealm: h.defaultRealm(),
 	})
 }
 
@@ -69,7 +93,14 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	// Use provided realm or fall back to default realm
 	realm := req.Realm
 	if realm == "" {
-		realm = h.krbConfig.LibDefaults.DefaultRealm
+		realm = h.defaultRealm()
+	}
+	if !h.isAllowed(realm) {
+		c.JSON(http.StatusBadRequest, model.Response{
+			Success: false,
+			Message: "Realm is not allowed",
+		})
+		return
 	}
 
 	// Create a new client instance with the user's current credentials

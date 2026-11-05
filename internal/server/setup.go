@@ -12,7 +12,13 @@ import (
 //go:embed web/index.html
 var indexHTML []byte
 
-func Setup(krbConfig *config.Config) *gin.Engine {
+// Options holds the server settings that come from the command line.
+type Options struct {
+	// Realms limits which realms users may pick. Empty allows every realm.
+	Realms []string
+}
+
+func Setup(krbConfig *config.Config, opts Options) *gin.Engine {
 	router := gin.Default()
 
 	// The UI is served from the same origin as the API, so no CORS headers are
@@ -21,7 +27,7 @@ func Setup(krbConfig *config.Config) *gin.Engine {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 	})
 
-	passwordHandler := handler.NewPasswordHandler(krbConfig)
+	passwordHandler := handler.NewPasswordHandler(krbConfig, opts.Realms)
 	router.GET("/api/realms", passwordHandler.GetRealms)
 	router.POST("/api/change-password", passwordHandler.ChangePassword)
 

@@ -5,6 +5,8 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/edward-murrell/k8init/internal/server"
@@ -16,6 +18,7 @@ func main() {
 	listen := flag.String("listen", ":8080", "address to listen on, as host:port")
 	tlsCert := flag.String("tls-cert", "", "TLS certificate file (PEM). Serves HTTPS when set with -tls-key")
 	tlsKey := flag.String("tls-key", "", "TLS private key file (PEM)")
+	realms := flag.String("realms", "", "comma-separated realms users may change passwords in (default: every realm in krb5.conf)")
 	flag.Parse()
 
 	if (*tlsCert == "") != (*tlsKey == "") {
@@ -28,9 +31,16 @@ func main() {
 		log.Fatalf("Error loading Kerberos config: %v", err)
 	}
 
+	opts := server.Options{Realms: splitList(*realms)}
+	for _, realm := range opts.Realms {
+		if !slices.ContainsFunc(cfg.Realms, func(r config.Realm) bool { return r.Realm == realm }) {
+			log.Printf("Warning: realm %s is not in /etc/krb5.conf", realm)
+		}
+	}
+
 	srv := &http.Server{
 		Addr:              *listen,
-		Handler:           server.Setup(cfg),
+		Handler:           server.Setup(cfg, opts),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -49,4 +59,15 @@ func main() {
 	}
 	log.Printf("Server starting on https://%s", *listen)
 	log.Fatal(srv.ListenAndServeTLS("", ""))
+}
+
+// splitList splits a comma-separated flag value and drops empty entries.
+func splitList(s string) []string {
+	var out []string
+	for _, item := range strings.Split(s, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			out = append(out, item)
+		}
+	}
+	return out
 }
