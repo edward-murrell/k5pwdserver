@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/edward-murrell/k8init/internal/handler"
+	"github.com/edward-murrell/k8init/internal/version"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
 )
@@ -32,8 +33,11 @@ func Setup(krbConfig *config.Config, opts Options) (*gin.Engine, error) {
 	if opts.Title == "" {
 		opts.Title = DefaultTitle
 	}
+	data := struct {
+		Title, Package, Version string
+	}{opts.Title, version.Package, version.Version}
 	var page bytes.Buffer
-	if err := indexTemplate.Execute(&page, opts); err != nil {
+	if err := indexTemplate.Execute(&page, data); err != nil {
 		return nil, err
 	}
 	indexHTML := page.Bytes()

@@ -23,6 +23,13 @@ go run ./cmd/pwdserver -realms EXAMPLE.COM,OTHER.ORG
 ```
 
 Use `-title` to change the page title and heading.
+
+The page footer shows the package name and version. Builds without a version
+show `dev`. To set one, build with:
+
+```sh
+go build -ldflags "-X github.com/edward-murrell/k8init/internal/version.Version=1.2.3" ./cmd/pwdserver
+```
 It serves the password change form at `/` (embedded from
 `internal/server/web/index.html`), so open `http://<host>:8080/` in a browser.
 
