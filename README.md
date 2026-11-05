@@ -1,10 +1,20 @@
 # k8init
 
+[![CI](https://github.com/edward-murrell/k5pwdserver/actions/workflows/ci.yml/badge.svg)](https://github.com/edward-murrell/k5pwdserver/actions/workflows/ci.yml)
+
 A small web service that lets users change their own Kerberos password.
 
 It works with MIT krb5, Heimdal and Active Directory/Samba KDCs. Password
 changes use the kpasswd change-password protocol (RFC 3244, version 1), because
 gokrb5's built-in set-password request is rejected by AD/Samba.
+
+<p>
+  <img src="docs/screenshot-light.png" alt="Password change form, light theme" width="49%">
+  <img src="docs/screenshot-dark.png" alt="Password change form, dark theme" width="49%">
+</p>
+
+The page follows the browser's light or dark setting. The button at the top
+right overrides it.
 
 ## Running
 
@@ -13,25 +23,26 @@ go run ./cmd/pwdserver
 ```
 
 The server reads realms and KDCs from `/etc/krb5.conf` and listens on `:8080`.
-Use `-listen host:port` to change the address.
+Open `http://<host>:8080/` in a browser.
 
-By default users can pick any realm in `krb5.conf`. To limit them, pass a
-comma-separated list. Realm names are case-sensitive.
+## Options
+
+| Flag        | Default                    | Description                                        |
+|-------------|----------------------------|----------------------------------------------------|
+| `-listen`   | `:8080`                    | Address to listen on, as `host:port`.              |
+| `-tls-cert` |                            | PEM certificate file. Set with `-tls-key` for HTTPS. |
+| `-tls-key`  |                            | PEM private key file.                              |
+| `-realms`   | every realm in `krb5.conf` | Comma-separated realms users may pick.             |
+| `-title`    | `Change Kerberos Password` | Page title and heading.                            |
+
+Realm names are case-sensitive. If `krb5.conf`'s default realm isn't in
+`-realms`, the first listed realm becomes the default.
 
 ```sh
-go run ./cmd/pwdserver -realms EXAMPLE.COM,OTHER.ORG
+go run ./cmd/pwdserver -realms EXAMPLE.COM,OTHER.ORG -title "Example Corp passwords"
 ```
 
-Use `-title` to change the page title and heading.
-
-The page footer shows the package name and version. Builds without a version
-show `dev`. To set one, build with:
-
-```sh
-go build -ldflags "-X github.com/edward-murrell/k8init/internal/version.Version=1.2.3" ./cmd/pwdserver
-```
-It serves the password change form at `/` (embedded from
-`internal/server/web/index.html`), so open `http://<host>:8080/` in a browser.
+## TLS
 
 The server speaks plain HTTP by default. Don't expose plain HTTP beyond
 localhost, because passwords cross the network. To serve HTTPS directly, pass
@@ -47,18 +58,25 @@ no restart. You can also run it on localhost behind a TLS proxy.
 ## Debian package
 
 The package installs `/usr/sbin/k8init` and a `k8init` systemd service. Set
-options in `/etc/default/k8init`. By default the service listens on
-`127.0.0.1:8080`.
+options in `/etc/default/k8init`, then restart the service. By default it
+listens on `127.0.0.1:8080`.
+
+```sh
+LISTEN=:443
+TLS_CERT=/etc/letsencrypt/live/example.com/fullchain.pem
+TLS_KEY=/etc/letsencrypt/live/example.com/privkey.pem
+REALMS=EXAMPLE.COM
+TITLE=Example Corp passwords
+```
+
+The service runs as a dynamic user, so it must be able to read the TLS key.
+The comments in `/etc/default/k8init` show how to grant access.
 
 To build a package for the release you're running, as root from the repo root:
 
 ```sh
 packaging/build-deb.sh 0.1.0
 ```
-
-Pushing a version tag runs the release workflow. It builds and tests packages
-for each supported release and attaches them to the GitHub release. The tag
-must match the version at the top of `debian/changelog`.
 
 ## Docker
 
@@ -87,7 +105,38 @@ docker build --build-arg VERSION=0.1.0 -t k8init .
 - `GET /api/realms` – allowed realms and the default realm.
 - `POST /api/change-password` – JSON body:
   `{"username", "realm", "oldPassword", "newPassword"}`.
-  `realm` is optional and defaults to `default_realm`.
+  `realm` is optional and defaults to the default realm.
   Returns 200 on success, 401 for wrong current credentials, 400 if the new
   password fails the KDC's password policy or the realm isn't allowed, 415 if
   the request isn't `application/json`, and 500 for other errors.
+
+## Development
+
+```sh
+go vet ./...
+go test ./...
+```
+
+GitHub Actions runs these on every push and pull request.
+
+The page footer shows the package name and version. Builds without a version
+show `dev`. To set one:
+
+```sh
+go build -ldflags "-X github.com/edward-murrell/k8init/internal/version.Version=1.2.3" ./cmd/pwdserver
+```
+
+## Releasing
+
+1. Add an entry to the top of `debian/changelog` with the new version.
+2. Commit, then push a matching tag, such as `v0.1.0`.
+
+The release workflow then:
+
+- builds and install-tests `.deb` packages for jammy, noble, bookworm and
+  trixie, on amd64 and arm64
+- attaches them to the GitHub release
+- pushes the image to GHCR
+- asks the packages repo to republish
+
+The tag must match the `debian/changelog` version, or the workflow stops.
