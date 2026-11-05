@@ -6,25 +6,98 @@
     <title>[[ .Title ]]</title>
     <!-- Vue.js CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        // Apply a saved theme before the page renders, to avoid a flash.
+        try {
+            const saved = localStorage.getItem('theme')
+            if (saved) document.documentElement.dataset.theme = saved
+        } catch (e) {}
+    </script>
     <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f5f5;
+            --card: #ffffff;
+            --text: #333333;
+            --label: #555555;
+            --muted: #888888;
+            --border: #dddddd;
+            --input-bg: #ffffff;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --accent: #4CAF50;
+            --accent-hover: #45a049;
+            --disabled: #cccccc;
+            --ok-bg: #dff0d8;
+            --ok-text: #3c763d;
+            --ok-border: #d6e9c6;
+            --err-bg: #f2dede;
+            --err-text: #a94442;
+            --err-border: #ebccd1;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --bg: #121212;
+                --card: #1e1e1e;
+                --text: #e6e6e6;
+                --label: #bbbbbb;
+                --muted: #888888;
+                --border: #444444;
+                --input-bg: #2a2a2a;
+                --shadow: rgba(0, 0, 0, 0.5);
+                --accent: #43a047;
+                --accent-hover: #4caf50;
+                --disabled: #555555;
+                --ok-bg: #1e3320;
+                --ok-text: #a5d6a7;
+                --ok-border: #2e5d32;
+                --err-bg: #3b1e1e;
+                --err-text: #ef9a9a;
+                --err-border: #6d2b2b;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #e6e6e6;
+            --label: #bbbbbb;
+            --muted: #888888;
+            --border: #444444;
+            --input-bg: #2a2a2a;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --accent: #43a047;
+            --accent-hover: #4caf50;
+            --disabled: #555555;
+            --ok-bg: #1e3320;
+            --ok-text: #a5d6a7;
+            --ok-border: #2e5d32;
+            --err-bg: #3b1e1e;
+            --err-text: #ef9a9a;
+            --err-border: #6d2b2b;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: var(--bg);
+            color: var(--text);
         }
 
         .password-change {
             max-width: 400px;
             margin: 20px auto;
             padding: 20px;
-            background-color: white;
+            background-color: var(--card);
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px var(--shadow);
         }
 
         h2 {
-            color: #333;
+            color: var(--text);
             text-align: center;
             margin-bottom: 20px;
         }
@@ -43,26 +116,28 @@
 
         label {
             font-size: 14px;
-            color: #555;
+            color: var(--label);
             font-weight: bold;
         }
 
         .form-input {
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border);
             border-radius: 4px;
             font-size: 14px;
+            background-color: var(--input-bg);
+            color: var(--text);
             transition: border-color 0.3s;
         }
 
         .form-input:focus {
             outline: none;
-            border-color: #4CAF50;
+            border-color: var(--accent);
         }
 
         .submit-btn {
             padding: 10px;
-            background-color: #4CAF50;
+            background-color: var(--accent);
             color: white;
             border: none;
             border-radius: 4px;
@@ -73,11 +148,11 @@
         }
 
         .submit-btn:hover {
-            background-color: #45a049;
+            background-color: var(--accent-hover);
         }
 
         .submit-btn:disabled {
-            background-color: #cccccc;
+            background-color: var(--disabled);
             cursor: not-allowed;
         }
 
@@ -90,15 +165,15 @@
         }
 
         .success {
-            background-color: #dff0d8;
-            color: #3c763d;
-            border: 1px solid #d6e9c6;
+            background-color: var(--ok-bg);
+            color: var(--ok-text);
+            border: 1px solid var(--ok-border);
         }
 
         .error {
-            background-color: #f2dede;
-            color: #a94442;
-            border: 1px solid #ebccd1;
+            background-color: var(--err-bg);
+            color: var(--err-text);
+            border: 1px solid var(--err-border);
         }
 
         .footer {
@@ -106,11 +181,25 @@
             right: 12px;
             bottom: 8px;
             font-size: 12px;
-            color: #888;
+            color: var(--muted);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background-color: var(--card);
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
+    <button type="button" id="theme-toggle" class="theme-toggle" onclick="toggleTheme()"></button>
     <div id="app">
         <div class="password-change">
             <h2>[[ .Title ]]</h2>
@@ -190,6 +279,29 @@
     </div>
     <footer class="footer">[[ .Package ]] [[ .Version ]]</footer>
     <script>
+        function currentTheme() {
+            return document.documentElement.dataset.theme ||
+                (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        }
+
+        function updateThemeToggle() {
+            const next = currentTheme() === 'dark' ? 'light' : 'dark'
+            document.getElementById('theme-toggle').textContent =
+                next === 'dark' ? 'Dark mode' : 'Light mode'
+        }
+
+        function toggleTheme() {
+            const next = currentTheme() === 'dark' ? 'light' : 'dark'
+            document.documentElement.dataset.theme = next
+            try {
+                localStorage.setItem('theme', next)
+            } catch (e) {}
+            updateThemeToggle()
+        }
+
+        updateThemeToggle()
+        matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeToggle)
+
         const { createApp } = Vue
 
         createApp({
