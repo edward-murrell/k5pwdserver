@@ -135,6 +135,31 @@
             border-color: var(--accent);
         }
 
+        .password-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .password-row .form-input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toggle-btn {
+            width: 56px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background-color: var(--input-bg);
+            color: var(--label);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .toggle-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
         .submit-btn {
             padding: 10px;
             background-color: var(--accent);
@@ -233,38 +258,65 @@
 
                 <div class="form-group">
                     <label for="oldPassword">Current Password:</label>
-                    <input 
-                        type="password" 
-                        id="oldPassword" 
-                        v-model="oldPassword" 
-                        required
-                        class="form-input"
-                        autocomplete="current-password"
-                    >
+                    <div class="password-row">
+                        <input
+                            :type="visible.oldPassword ? 'text' : 'password'"
+                            id="oldPassword"
+                            v-model="oldPassword"
+                            required
+                            class="form-input"
+                            autocomplete="current-password"
+                        >
+                        <button
+                            type="button"
+                            class="toggle-btn"
+                            :aria-pressed="visible.oldPassword"
+                            aria-label="Show current password"
+                            @click="visible.oldPassword = !visible.oldPassword"
+                        >{{ visible.oldPassword ? 'Hide' : 'Show' }}</button>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="newPassword">New Password:</label>
-                    <input 
-                        type="password" 
-                        id="newPassword" 
-                        v-model="newPassword" 
-                        required
-                        class="form-input"
-                        autocomplete="new-password"
-                    >
+                    <div class="password-row">
+                        <input
+                            :type="visible.newPassword ? 'text' : 'password'"
+                            id="newPassword"
+                            v-model="newPassword"
+                            required
+                            class="form-input"
+                            autocomplete="new-password"
+                        >
+                        <button
+                            type="button"
+                            class="toggle-btn"
+                            :aria-pressed="visible.newPassword"
+                            aria-label="Show new password"
+                            @click="visible.newPassword = !visible.newPassword"
+                        >{{ visible.newPassword ? 'Hide' : 'Show' }}</button>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="confirmPassword">Confirm New Password:</label>
-                    <input 
-                        type="password" 
-                        id="confirmPassword" 
-                        v-model="confirmPassword" 
-                        required
-                        class="form-input"
-                        autocomplete="new-password"
-                    >
+                    <div class="password-row">
+                        <input
+                            :type="visible.confirmPassword ? 'text' : 'password'"
+                            id="confirmPassword"
+                            v-model="confirmPassword"
+                            required
+                            class="form-input"
+                            autocomplete="new-password"
+                        >
+                        <button
+                            type="button"
+                            class="toggle-btn"
+                            :aria-pressed="visible.confirmPassword"
+                            aria-label="Show new password confirmation"
+                            @click="visible.confirmPassword = !visible.confirmPassword"
+                        >{{ visible.confirmPassword ? 'Hide' : 'Show' }}</button>
+                    </div>
                 </div>
 
                 <button type="submit" class="submit-btn" :disabled="!isValid">
@@ -316,7 +368,12 @@
                     isLoading: false,
                     realms: [],
                     selectedRealm: '',
-                    defaultRealm: ''
+                    defaultRealm: '',
+                    visible: {
+                        oldPassword: false,
+                        newPassword: false,
+                        confirmPassword: false
+                    }
                 }
             },
             async created() {
@@ -390,6 +447,7 @@
                     this.oldPassword = ''
                     this.newPassword = ''
                     this.confirmPassword = ''
+                    this.visible = { oldPassword: false, newPassword: false, confirmPassword: false }
                     this.selectedRealm = this.defaultRealm // Reset to default realm
                 }
             }
