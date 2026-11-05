@@ -123,6 +123,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
+          # Only the packages. The docker job also uploads a build record that
+          # download-artifact can't extract.
+          pattern: deb-*
           path: out
           merge-multiple: true
       - name: Attach packages to the GitHub release
