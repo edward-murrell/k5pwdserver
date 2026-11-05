@@ -18,6 +18,14 @@ const DefaultTitle = "Change Kerberos Password"
 //go:embed web/index.html
 var indexSource string
 
+// Vue is bundled so the page works without internet access and doesn't load
+// code from a third-party CDN. To upgrade, replace the file and update both names.
+//
+//go:embed web/vue-3.5.44.global.prod.js
+var vueJS []byte
+
+const vuePath = "/assets/vue-3.5.44.global.prod.js"
+
 // The page uses Vue's {{ }} syntax, so the Go template uses [[ ]] instead.
 var indexTemplate = template.Must(template.New("index").Delims("[[", "]]").Parse(indexSource))
 
@@ -34,8 +42,8 @@ func Setup(krbConfig *config.Config, opts Options) (*gin.Engine, error) {
 		opts.Title = DefaultTitle
 	}
 	data := struct {
-		Title, Package, Version string
-	}{opts.Title, version.Package, version.Version}
+		Title, Package, Version, VuePath string
+	}{opts.Title, version.Package, version.Version, vuePath}
 	var page bytes.Buffer
 	if err := indexTemplate.Execute(&page, data); err != nil {
 		return nil, err
@@ -48,6 +56,11 @@ func Setup(krbConfig *config.Config, opts Options) (*gin.Engine, error) {
 	// sent and browsers will block cross-site scripts from calling the API.
 	router.GET("/", func(c *gin.Context) {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
+	})
+	router.GET(vuePath, func(c *gin.Context) {
+		// The version is in the path, so browsers can cache it for good.
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Data(http.StatusOK, "text/javascript; charset=utf-8", vueJS)
 	})
 
 	passwordHandler := handler.NewPasswordHandler(krbConfig, opts.Realms)
