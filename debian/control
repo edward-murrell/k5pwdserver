@@ -1,4 +1,4 @@
-Source: k8init
+Source: k5pwdserver
 Section: admin
 Priority: optional
 Maintainer: Edward Murrell <edward@murrell.co.nz>
@@ -11,14 +11,14 @@ Vcs-Browser: https://github.com/edward-murrell/k5pwdserver
 Vcs-Git: https://github.com/edward-murrell/k5pwdserver.git
 Rules-Requires-Root: no
 
-Package: k8init
+Package: k5pwdserver
 Architecture: any
 Depends: ${misc:Depends}
 Recommends: krb5-config
 Description: Web service for users to change their own Kerberos password
- k8init serves a web form that lets users change their own Kerberos
+ k5pwdserver serves a web form that lets users change their own Kerberos
  password. It works with MIT krb5, Heimdal and Active Directory/Samba
  KDCs, and reads realms and KDCs from /etc/krb5.conf.
  .
- The service listens on localhost by default. Edit /etc/default/k8init
+ The service listens on localhost by default. Edit /etc/default/k5pwdserver
  to enable TLS or change the listening address.

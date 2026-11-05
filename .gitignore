@@ -8,7 +8,7 @@
 # Local dpkg-buildpackage leftovers
 /debian/.debhelper/
 /debian/build/
-/debian/k8init/
+/debian/k5pwdserver/
 /debian/debhelper-build-stamp
 /debian/files
 /debian/*.substvars

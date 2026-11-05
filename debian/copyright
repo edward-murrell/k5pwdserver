@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: k8init
+Upstream-Name: k5pwdserver
 Upstream-Contact: Edward Murrell <edward@murrell.co.nz>
 Source: https://github.com/edward-murrell/k5pwdserver
 

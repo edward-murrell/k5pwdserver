@@ -14,7 +14,7 @@ export GOFLAGS = -trimpath -modcacherw
 
 override_dh_auto_build:
 	go build -ldflags "-B gobuildid -X github.com/edward-murrell/k8init/internal/version.Version=$(VERSION)" \
-		-o debian/build/k8init ./cmd/pwdserver
+		-o debian/build/k5pwdserver ./cmd/pwdserver
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
@@ -22,7 +22,7 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 endif
 
 override_dh_auto_install:
-	install -D -m 0755 debian/build/k8init debian/k8init/usr/sbin/k8init
+	install -D -m 0755 debian/build/k5pwdserver debian/k5pwdserver/usr/sbin/k5pwdserver
 
 override_dh_auto_clean:
 	rm -rf debian/build

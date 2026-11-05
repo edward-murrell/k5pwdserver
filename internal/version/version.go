@@ -2,7 +2,7 @@
 package version
 
 // Package is the name of the distributed package.
-const Package = "k8init"
+const Package = "k5pwdserver"
 
 // Version is set at build time with:
 //

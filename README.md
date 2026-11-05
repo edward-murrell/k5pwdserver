@@ -1,4 +1,4 @@
-# k8init
+# k5pwdserver
 
 [![CI](https://github.com/edward-murrell/k5pwdserver/actions/workflows/ci.yml/badge.svg)](https://github.com/edward-murrell/k5pwdserver/actions/workflows/ci.yml)
 
@@ -57,9 +57,9 @@ no restart. You can also run it on localhost behind a TLS proxy.
 
 ## Debian package
 
-The package installs `/usr/sbin/k8init` and a `k8init` systemd service. Set
-options in `/etc/default/k8init`, then restart the service. By default it
-listens on `127.0.0.1:8080`.
+The package installs `/usr/sbin/k5pwdserver` and a `k5pwdserver` systemd
+service. Set options in `/etc/default/k5pwdserver`, then restart the service.
+By default it listens on `127.0.0.1:8080`.
 
 ```sh
 LISTEN=:443
@@ -70,7 +70,7 @@ TITLE=Example Corp passwords
 ```
 
 The service runs as a dynamic user, so it must be able to read the TLS key.
-The comments in `/etc/default/k8init` show how to grant access.
+The comments in `/etc/default/k5pwdserver` show how to grant access.
 
 To build a package for the release you're running, as root from the repo root:
 
@@ -80,14 +80,14 @@ packaging/build-deb.sh 0.1.0
 
 ## Docker
 
-Release tags publish an image to `ghcr.io/edward-murrell/k8init`. Mount the
-host's `krb5.conf`, and pass flags after the image name:
+Release tags publish an image to `ghcr.io/edward-murrell/k5pwdserver`. Mount
+the host's `krb5.conf`, and pass flags after the image name:
 
 ```sh
 docker run -d -p 8443:8443 \
   -v /etc/krb5.conf:/etc/krb5.conf:ro \
-  -v /etc/k8init/tls:/tls:ro \
-  ghcr.io/edward-murrell/k8init \
+  -v /etc/k5pwdserver/tls:/tls:ro \
+  ghcr.io/edward-murrell/k5pwdserver \
   -listen :8443 -tls-cert /tls/cert.pem -tls-key /tls/key.pem
 ```
 
@@ -97,7 +97,7 @@ The container runs as a non-root user, so the key must be readable by UID
 To build the image locally:
 
 ```sh
-docker build --build-arg VERSION=0.1.0 -t k8init .
+docker build --build-arg VERSION=0.1.0 -t k5pwdserver .
 ```
 
 ## API

@@ -8,12 +8,12 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
     -ldflags "-X github.com/edward-murrell/k8init/internal/version.Version=${VERSION}" \
-    -o /out/k8init ./cmd/pwdserver
+    -o /out/k5pwdserver ./cmd/pwdserver
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/k8init /usr/sbin/k8init
+COPY --from=build /out/k5pwdserver /usr/sbin/k5pwdserver
 ENV GIN_MODE=release
 EXPOSE 8080
 # Mount /etc/krb5.conf, plus any TLS certificate and key, from the host.
-ENTRYPOINT ["/usr/sbin/k8init"]
+ENTRYPOINT ["/usr/sbin/k5pwdserver"]
 CMD ["-listen", ":8080"]

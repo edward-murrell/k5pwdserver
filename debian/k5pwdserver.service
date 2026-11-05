@@ -5,13 +5,13 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-# Defaults. /etc/default/k8init overrides them.
+# Defaults. /etc/default/k5pwdserver overrides them.
 Environment=LISTEN=127.0.0.1:8080
 Environment=GIN_MODE=release
-EnvironmentFile=-/etc/default/k8init
+EnvironmentFile=-/etc/default/k5pwdserver
 # ${VAR} passes each value as one argument, so titles can contain spaces.
 # Empty values fall back to the built-in defaults.
-ExecStart=/usr/sbin/k8init -listen ${LISTEN} -tls-cert ${TLS_CERT} -tls-key ${TLS_KEY} -realms ${REALMS} -title ${TITLE}
+ExecStart=/usr/sbin/k5pwdserver -listen ${LISTEN} -tls-cert ${TLS_CERT} -tls-key ${TLS_KEY} -realms ${REALMS} -title ${TITLE}
 Restart=on-failure
 
 DynamicUser=yes

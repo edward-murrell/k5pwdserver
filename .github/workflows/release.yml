@@ -16,7 +16,7 @@ permissions:
 
 env:
   PACKAGES_REPO: edward-murrell/packages
-  IMAGE: ghcr.io/${{ github.repository_owner }}/k8init
+  IMAGE: ghcr.io/${{ github.repository_owner }}/k5pwdserver
 
 jobs:
   version:
@@ -87,9 +87,9 @@ jobs:
           apt-get install -y -qq curl
           apt-get install -y ./out/*.deb
           printf '[libdefaults]\n default_realm = EXAMPLE.COM\n[realms]\n EXAMPLE.COM = {\n  kdc = 127.0.0.1\n }\n' > /etc/krb5.conf
-          /usr/sbin/k8init -listen 127.0.0.1:8080 &
+          /usr/sbin/k5pwdserver -listen 127.0.0.1:8080 &
           for i in $(seq 1 20); do curl -fs http://127.0.0.1:8080/ -o page.html && break; sleep 0.5; done
-          grep -q "k8init ${{ needs.version.outputs.version }}<" page.html \
+          grep -q "k5pwdserver ${{ needs.version.outputs.version }}<" page.html \
             || { echo "::error::Page footer doesn't show the package version"; exit 1; }
           curl -fs http://127.0.0.1:8080/api/realms | grep -q EXAMPLE.COM
 

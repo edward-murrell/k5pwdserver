@@ -41,7 +41,7 @@ func TestIndexPage(t *testing.T) {
 	if !strings.Contains(body, "<title>"+DefaultTitle+"</title>") {
 		t.Error("page does not use the default title")
 	}
-	if !strings.Contains(body, `<footer class="footer">k8init dev</footer>`) {
+	if !strings.Contains(body, `<footer class="footer">k5pwdserver dev</footer>`) {
 		t.Error("footer does not show the package and version")
 	}
 }
