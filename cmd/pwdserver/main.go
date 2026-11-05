@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/edward-murrell/k8init/internal/server"
-	"github.com/edward-murrell/k8init/internal/tlscert"
+	"github.com/edward-murrell/k5pwdserver/internal/server"
+	"github.com/edward-murrell/k5pwdserver/internal/tlscert"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
 )
 

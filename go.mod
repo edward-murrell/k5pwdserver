@@ -1,4 +1,4 @@
-module github.com/edward-murrell/k8init
+module github.com/edward-murrell/k5pwdserver
 
 go 1.23.2
 

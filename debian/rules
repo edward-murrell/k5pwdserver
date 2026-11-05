@@ -13,7 +13,7 @@ export GOFLAGS = -trimpath -modcacherw
 	dh $@
 
 override_dh_auto_build:
-	go build -ldflags "-B gobuildid -X github.com/edward-murrell/k8init/internal/version.Version=$(VERSION)" \
+	go build -ldflags "-B gobuildid -X github.com/edward-murrell/k5pwdserver/internal/version.Version=$(VERSION)" \
 		-o debian/build/k5pwdserver ./cmd/pwdserver
 
 override_dh_auto_test:

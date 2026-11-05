@@ -6,8 +6,8 @@ import (
 	"html/template"
 	"net/http"
 
-	"github.com/edward-murrell/k8init/internal/handler"
-	"github.com/edward-murrell/k8init/internal/version"
+	"github.com/edward-murrell/k5pwdserver/internal/handler"
+	"github.com/edward-murrell/k5pwdserver/internal/version"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
 )

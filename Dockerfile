@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
-    -ldflags "-X github.com/edward-murrell/k8init/internal/version.Version=${VERSION}" \
+    -ldflags "-X github.com/edward-murrell/k5pwdserver/internal/version.Version=${VERSION}" \
     -o /out/k5pwdserver ./cmd/pwdserver
 
 FROM gcr.io/distroless/static-debian12:nonroot

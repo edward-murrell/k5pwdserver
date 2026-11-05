@@ -123,7 +123,7 @@ The page footer shows the package name and version. Builds without a version
 show `dev`. To set one:
 
 ```sh
-go build -ldflags "-X github.com/edward-murrell/k8init/internal/version.Version=1.2.3" ./cmd/pwdserver
+go build -ldflags "-X github.com/edward-murrell/k5pwdserver/internal/version.Version=1.2.3" ./cmd/pwdserver
 ```
 
 ## Releasing

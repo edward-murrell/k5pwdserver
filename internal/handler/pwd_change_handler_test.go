@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/edward-murrell/k8init/internal/model"
+	"github.com/edward-murrell/k5pwdserver/internal/model"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
 )
