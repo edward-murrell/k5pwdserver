@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/edward-murrell/k8init/internal/kpasswd"
 	"github.com/edward-murrell/k8init/internal/model"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/client"
@@ -66,10 +68,11 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		realm,
 		req.OldPassword,
 		h.krbConfig,
+		client.DisablePAFXFAST(true),
 	)
 
 	// Try to login first to verify current credentials
-	err := cl.Login()
+	err := cl.AffirmLogin()
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, model.Response{
 			Success: false,
@@ -78,20 +81,20 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	// Attempt to change the password
-	success, err := cl.ChangePasswd(req.NewPassword)
-	if err != nil {
+	// Attempt to change the password. gokrb5's cl.ChangePasswd sends a target
+	// principal, which AD/Samba treat as an admin reset and reject; see kpasswd.
+	if err := kpasswd.ChangePassword(cl, req.NewPassword); err != nil {
+		var kerr *kpasswd.ResultError
+		if errors.As(err, &kerr) && kerr.IsPolicyRejection() {
+			c.JSON(http.StatusBadRequest, model.Response{
+				Success: false,
+				Message: kerr.Message,
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, model.Response{
 			Success: false,
 			Message: "Failed to change password: " + err.Error(),
-		})
-		return
-	}
-
-	if !success {
-		c.JSON(http.StatusInternalServerError, model.Response{
-			Success: false,
-			Message: "Password change operation failed",
 		})
 		return
 	}
