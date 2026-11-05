@@ -1,0 +1,8 @@
+.git
+.github
+.idea
+debian
+packaging
+out
+TODO.md
+*.md

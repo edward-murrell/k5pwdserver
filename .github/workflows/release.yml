@@ -2,7 +2,8 @@ name: Release
 
 # Push a version tag to build native .deb packages on every supported release
 # (amd64 + arm64), install-test each one in a clean container, attach them to
-# the GitHub release and tell the central packages repo to republish.
+# the GitHub release and tell the central packages repo to republish. It also
+# pushes a multi-arch container image to GHCR.
 # Run it by hand (Actions -> Release -> Run workflow) to build and test without releasing.
 on:
   push:
@@ -11,9 +12,11 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 env:
   PACKAGES_REPO: edward-murrell/packages
+  IMAGE: ghcr.io/${{ github.repository_owner }}/k8init
 
 jobs:
   version:
@@ -89,6 +92,29 @@ jobs:
           grep -q "k8init ${{ needs.version.outputs.version }}<" page.html \
             || { echo "::error::Page footer doesn't show the package version"; exit 1; }
           curl -fs http://127.0.0.1:8080/api/realms | grep -q EXAMPLE.COM
+
+  docker:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.ref_type == 'tag'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build, and push on tags
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ needs.version.outputs.version }}
+          push: ${{ github.ref_type == 'tag' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ needs.version.outputs.version }}
+            ${{ env.IMAGE }}:latest
 
   release:
     needs: deb-test
