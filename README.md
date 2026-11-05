@@ -13,6 +13,7 @@ go run ./cmd/pwdserver
 ```
 
 The server reads realms and KDCs from `/etc/krb5.conf` and listens on `:8080`.
+Use `-listen host:port` to change the address.
 It serves the password change form at `/` (embedded from
 `internal/server/web/index.html`), so open `http://<host>:8080/` in a browser.
 

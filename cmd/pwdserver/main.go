@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	"github.com/edward-murrell/k8init/internal/server"
@@ -8,6 +9,9 @@ import (
 )
 
 func main() {
+	listen := flag.String("listen", ":8080", "address to listen on, as host:port")
+	flag.Parse()
+
 	// Load Kerberos configuration
 	cfg, err := config.Load("/etc/krb5.conf")
 	if err != nil {
@@ -17,6 +21,6 @@ func main() {
 	// Setup and run the server
 	router := server.Setup(cfg)
 
-	log.Printf("Server starting on :8080")
-	log.Fatal(router.Run(":8080"))
+	log.Printf("Server starting on %s", *listen)
+	log.Fatal(router.Run(*listen))
 }
