@@ -1,0 +1,36 @@
+[Unit]
+Description=Kerberos password change web service
+Documentation=https://github.com/edward-murrell/k5pwdserver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Defaults. /etc/default/k8init overrides them.
+Environment=LISTEN=127.0.0.1:8080
+Environment=GIN_MODE=release
+EnvironmentFile=-/etc/default/k8init
+# ${VAR} passes each value as one argument, so titles can contain spaces.
+# Empty values fall back to the built-in defaults.
+ExecStart=/usr/sbin/k8init -listen ${LISTEN} -tls-cert ${TLS_CERT} -tls-key ${TLS_KEY} -realms ${REALMS} -title ${TITLE}
+Restart=on-failure
+
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

@@ -44,6 +44,22 @@ go run ./cmd/pwdserver -listen :8443 -tls-cert cert.pem -tls-key key.pem
 The server reloads the certificate when either file changes, so renewals need
 no restart. You can also run it on localhost behind a TLS proxy.
 
+## Debian package
+
+The package installs `/usr/sbin/k8init` and a `k8init` systemd service. Set
+options in `/etc/default/k8init`. By default the service listens on
+`127.0.0.1:8080`.
+
+To build a package for the release you're running, as root from the repo root:
+
+```sh
+packaging/build-deb.sh 0.1.0
+```
+
+Pushing a version tag runs the release workflow. It builds and tests packages
+for each supported release and attaches them to the GitHub release. The tag
+must match the version at the top of `debian/changelog`.
+
 ## API
 
 - `GET /api/realms` – allowed realms and the default realm.

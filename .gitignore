@@ -1,0 +1,15 @@
+# IDE
+.idea/
+.vscode/
+
+# Package build output
+/out/
+
+# Local dpkg-buildpackage leftovers
+/debian/.debhelper/
+/debian/build/
+/debian/k8init/
+/debian/debhelper-build-stamp
+/debian/files
+/debian/*.substvars
+/debian/*.debhelper.log

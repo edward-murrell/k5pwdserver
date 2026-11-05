@@ -1,0 +1,31 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/pkg-info.mk
+
+# build-deb.sh adds a +<codename> suffix. The page footer shows the version without it.
+VERSION := $(firstword $(subst +, ,$(DEB_VERSION_UPSTREAM)))
+
+export CGO_ENABLED = 0
+export GOTOOLCHAIN = local
+export GOFLAGS = -trimpath -modcacherw
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	go build -ldflags "-B gobuildid -X github.com/edward-murrell/k8init/internal/version.Version=$(VERSION)" \
+		-o debian/build/k8init ./cmd/pwdserver
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	go test ./...
+endif
+
+override_dh_auto_install:
+	install -D -m 0755 debian/build/k8init debian/k8init/usr/sbin/k8init
+
+override_dh_auto_clean:
+	rm -rf debian/build
+
+# Go binaries carry DWARF that dwz can't compress.
+override_dh_dwz:

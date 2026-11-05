@@ -1,0 +1,119 @@
+name: Release
+
+# Push a version tag to build native .deb packages on every supported release
+# (amd64 + arm64), install-test each one in a clean container, attach them to
+# the GitHub release and tell the central packages repo to republish.
+# Run it by hand (Actions -> Release -> Run workflow) to build and test without releasing.
+on:
+  push:
+    tags: ["v*", "[0-9]*.[0-9]*"]     # v1.2.0 or 1.2.0
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PACKAGES_REPO: edward-murrell/packages
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: v
+        name: Work out the version (tag must match debian/changelog)
+        run: |
+          CHANGELOG_VERSION=$(dpkg-parsechangelog -S Version)
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$VERSION" != "$CHANGELOG_VERSION" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME doesn't match debian/changelog version $CHANGELOG_VERSION"; exit 1
+            fi
+          else
+            VERSION="$CHANGELOG_VERSION"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  deb:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        target:                                  # suite name must match the central repo's SUITES
+          - { suite: jammy,    image: "ubuntu:22.04" }
+          - { suite: noble,    image: "ubuntu:24.04" }
+          - { suite: bookworm, image: "debian:12" }
+          - { suite: trixie,   image: "debian:13" }
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container: ${{ matrix.target.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: packaging/build-deb.sh "${{ needs.version.outputs.version }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb-${{ matrix.target.suite }}-${{ matrix.arch }}
+          path: out/*.deb
+          if-no-files-found: error
+
+  deb-test:
+    needs: [version, deb]
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { suite: jammy,    image: "ubuntu:22.04" }
+          - { suite: noble,    image: "ubuntu:24.04" }
+          - { suite: bookworm, image: "debian:12" }
+          - { suite: trixie,   image: "debian:13" }
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container: ${{ matrix.target.image }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: deb-${{ matrix.target.suite }}-${{ matrix.arch }}
+          path: out
+      - name: Install in a clean system and check the server starts
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y -qq curl
+          apt-get install -y ./out/*.deb
+          printf '[libdefaults]\n default_realm = EXAMPLE.COM\n[realms]\n EXAMPLE.COM = {\n  kdc = 127.0.0.1\n }\n' > /etc/krb5.conf
+          /usr/sbin/k8init -listen 127.0.0.1:8080 &
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:8080/ -o page.html && break; sleep 0.5; done
+          grep -q "k8init ${{ needs.version.outputs.version }}<" page.html \
+            || { echo "::error::Page footer doesn't show the package version"; exit 1; }
+          curl -fs http://127.0.0.1:8080/api/realms | grep -q EXAMPLE.COM
+
+  release:
+    needs: deb-test
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: out
+          merge-multiple: true
+      - name: Attach packages to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l out/
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" out/* --clobber
+      - name: Republish the package repository
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::PACKAGES_DISPATCH_TOKEN not set; the repo will pick this release up on its nightly run."
+            exit 0
+          fi
+          gh workflow run publish.yml -R "$PACKAGES_REPO"

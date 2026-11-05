@@ -1,0 +1,23 @@
+# Settings for the k8init service. Restart it after changes:
+#   systemctl restart k8init
+
+# Address to listen on. The default is localhost only. Plain HTTP sends
+# passwords in clear text, so enable TLS before listening on other addresses.
+#LISTEN=127.0.0.1:8080
+
+# Serve HTTPS with this PEM certificate and key. The service reloads them when
+# they change, so renewals need no restart. For example:
+#LISTEN=:443
+#TLS_CERT=/etc/letsencrypt/live/example.com/fullchain.pem
+#TLS_KEY=/etc/letsencrypt/live/example.com/privkey.pem
+#
+# The service runs as a dynamic user, so it must be able to read the key.
+# For keys in /etc/ssl/private, run "systemctl edit k8init" and add:
+#   [Service]
+#   SupplementaryGroups=ssl-cert
+
+# Comma-separated realms users may pick. Empty allows every realm in /etc/krb5.conf.
+#REALMS=EXAMPLE.COM,OTHER.ORG
+
+# Page title and heading.
+#TITLE=Change Kerberos Password
