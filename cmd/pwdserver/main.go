@@ -18,6 +18,7 @@ func main() {
 	listen := flag.String("listen", ":8080", "address to listen on, as host:port")
 	tlsCert := flag.String("tls-cert", "", "TLS certificate file (PEM). Serves HTTPS when set with -tls-key")
 	tlsKey := flag.String("tls-key", "", "TLS private key file (PEM)")
+	title := flag.String("title", server.DefaultTitle, "page title and heading")
 	realms := flag.String("realms", "", "comma-separated realms users may change passwords in (default: every realm in krb5.conf)")
 	flag.Parse()
 
@@ -31,16 +32,21 @@ func main() {
 		log.Fatalf("Error loading Kerberos config: %v", err)
 	}
 
-	opts := server.Options{Realms: splitList(*realms)}
+	opts := server.Options{Realms: splitList(*realms), Title: *title}
 	for _, realm := range opts.Realms {
 		if !slices.ContainsFunc(cfg.Realms, func(r config.Realm) bool { return r.Realm == realm }) {
 			log.Printf("Warning: realm %s is not in /etc/krb5.conf", realm)
 		}
 	}
 
+	router, err := server.Setup(cfg, opts)
+	if err != nil {
+		log.Fatalf("Error setting up server: %v", err)
+	}
+
 	srv := &http.Server{
 		Addr:              *listen,
-		Handler:           server.Setup(cfg, opts),
+		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

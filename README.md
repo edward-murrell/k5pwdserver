@@ -21,6 +21,8 @@ comma-separated list. Realm names are case-sensitive.
 ```sh
 go run ./cmd/pwdserver -realms EXAMPLE.COM,OTHER.ORG
 ```
+
+Use `-title` to change the page title and heading.
 It serves the password change form at `/` (embedded from
 `internal/server/web/index.html`), so open `http://<host>:8080/` in a browser.
 
