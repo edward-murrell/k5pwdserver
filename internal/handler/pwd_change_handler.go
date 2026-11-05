@@ -47,6 +47,16 @@ func (h *PasswordHandler) GetRealms(c *gin.Context) {
 }
 
 func (h *PasswordHandler) ChangePassword(c *gin.Context) {
+	// Requiring a JSON content type forces cross-origin browser requests through a
+	// CORS preflight, which this server never approves.
+	if c.ContentType() != "application/json" {
+		c.JSON(http.StatusUnsupportedMediaType, model.Response{
+			Success: false,
+			Message: "Content-Type must be application/json",
+		})
+		return
+	}
+
 	var req model.PasswordChangeRequest
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, model.Response{

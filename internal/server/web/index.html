@@ -215,7 +215,7 @@
             methods: {
                 async loadRealms() {
                     try {
-                        const response = await fetch('http://localhost:8080/api/realms')
+                        const response = await fetch('/api/realms')
                         const data = await response.json()
                         this.realms = data.realms
                         this.defaultRealm = data.default_realm
@@ -233,7 +233,7 @@
                     this.message = ''
 
                     try {
-                        const response = await fetch('http://localhost:8080/api/change-password', {
+                        const response = await fetch('/api/change-password', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
