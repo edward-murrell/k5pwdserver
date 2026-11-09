@@ -1,3 +1,11 @@
+k5pwdserver (0.1.2) unstable; urgency=medium
+
+  * Let users with expired passwords change them.
+  * Return 500 rather than 401 when the KDC is unreachable.
+  * Move internals and release docs to docs/.
+
+ -- Edward Murrell <edward@murrell.co.nz>  Mon, 09 Nov 2026 22:02:40 +1100
+
 k5pwdserver (0.1.1) unstable; urgency=medium
 
   * Add show/hide toggles to password fields.
