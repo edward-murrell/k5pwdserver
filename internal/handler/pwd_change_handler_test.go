@@ -8,9 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/edward-murrell/k5pwdserver/internal/kdctest"
 	"github.com/edward-murrell/k5pwdserver/internal/model"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"gopkg.in/jcmturner/gokrb5.v7/iana/errorcode"
 )
 
 func init() {
@@ -85,7 +87,7 @@ func TestChangePasswordStatus(t *testing.T) {
 		{"form post", "application/x-www-form-urlencoded", "username=a", http.StatusUnsupportedMediaType},
 		{"invalid json", "application/json", `{`, http.StatusBadRequest},
 		{"unreachable KDC", "application/json",
-			`{"username":"alice","oldPassword":"old","newPassword":"new"}`, http.StatusUnauthorized},
+			`{"username":"alice","oldPassword":"old","newPassword":"new"}`, http.StatusInternalServerError},
 	}
 	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM"), nil)
 	for _, tt := range tests {
@@ -139,6 +141,26 @@ func TestChangePasswordRealmNotAllowed(t *testing.T) {
 		w := serve(h, req)
 		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "not allowed") {
 			t.Errorf("body %s: status = %d (%s), want 400 not allowed", body, w.Code, w.Body)
+		}
+	}
+}
+
+func TestChangePasswordRejectedCredentials(t *testing.T) {
+	kdc := kdctest.Start(t, "EXAMPLE.COM", errorcode.KDC_ERR_PREAUTH_FAILED)
+	h := NewPasswordHandler(kdc.Config(t), nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/change-password",
+		strings.NewReader(`{"username":"alice","oldPassword":"wrong","newPassword":"new"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := serve(h, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401 (body %s)", w.Code, w.Body)
+	}
+	// Asking for a TGT would fail for users whose password has expired.
+	for _, svc := range kdc.Services() {
+		if svc != "kadmin/changepw" {
+			t.Errorf("handler requested a ticket for %s, want only kadmin/changepw", svc)
 		}
 	}
 }

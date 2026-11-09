@@ -8,8 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/edward-murrell/k5pwdserver/internal/kdctest"
 	"gopkg.in/jcmturner/gokrb5.v7/client"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"gopkg.in/jcmturner/gokrb5.v7/iana/errorcode"
+	"gopkg.in/jcmturner/gokrb5.v7/krberror"
 )
 
 // fakeServer accepts one framed request and replies with the given payload,
@@ -120,5 +123,47 @@ func TestResultError(t *testing.T) {
 	}
 	if (&ResultError{Code: AccessDenied}).IsPolicyRejection() {
 		t.Error("access denied should not be a policy rejection")
+	}
+}
+
+func TestChangePasswordKDCErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		code      int32
+		wantLogin bool
+	}{
+		{"wrong password", errorcode.KDC_ERR_PREAUTH_FAILED, true},
+		{"unknown user", errorcode.KDC_ERR_C_PRINCIPAL_UNKNOWN, true},
+		{"account disabled", errorcode.KDC_ERR_CLIENT_REVOKED, true},
+		{"KDC fault", errorcode.KDC_ERR_ETYPE_NOSUPP, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kdc := kdctest.Start(t, "EXAMPLE.COM", tt.code)
+			cl := client.NewClientWithPassword("alice", "EXAMPLE.COM", "pw", kdc.Config(t), client.DisablePAFXFAST(true))
+
+			err := ChangePassword(cl, "new")
+			var lerr *LoginError
+			if got := errors.As(err, &lerr); got != tt.wantLogin {
+				t.Errorf("LoginError = %v, want %v (err %v)", got, tt.wantLogin, err)
+			}
+			for _, svc := range kdc.Services() {
+				if svc != "kadmin/changepw" {
+					t.Errorf("requested a ticket for %s, want only kadmin/changepw", svc)
+				}
+			}
+		})
+	}
+}
+
+func TestCredentialsRejectedWithoutPreauth(t *testing.T) {
+	// Without pre-authentication, a wrong password shows up as a reply the
+	// client can't decrypt.
+	err := krberror.NewErrorf(krberror.KRBMsgError, "AS Exchange Error: AS_REP is not valid or client password/keytab incorrect")
+	if !credentialsRejected(err) {
+		t.Error("undecryptable AS-REP should count as rejected credentials")
+	}
+	if credentialsRejected(errors.New("connection refused")) {
+		t.Error("a plain network error should not count as rejected credentials")
 	}
 }

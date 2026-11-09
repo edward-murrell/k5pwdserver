@@ -34,6 +34,12 @@ The request is built with gokrb5, then the version field is rewritten to
 
 - The ticket comes from an AS exchange for `kadmin/changepw`. KDCs require an
   initial ticket for password changes, so a TGS ticket won't work.
+- That exchange also checks the current password. The server never asks for
+  a TGT. KDCs refuse a TGT to users whose password has expired, but still
+  issue the `kadmin/changepw` ticket, so those users can change it here.
+- A wrong password, unknown user, or disabled or locked account returns a 401.
+  The response is the same for each, so it doesn't say which accounts exist.
+  Network and other KDC faults return a 500.
 - Requests go over TCP to the realm's `kpasswd_server`. If that isn't set,
   they go to the `admin_server` host on port 464. gokrb5 skips `admin_server`
   entries written without a port, so set `kpasswd_server` to be safe.

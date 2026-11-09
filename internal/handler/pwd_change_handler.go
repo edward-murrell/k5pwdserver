@@ -112,19 +112,19 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		client.DisablePAFXFAST(true),
 	)
 
-	// Try to login first to verify current credentials
-	err := cl.AffirmLogin()
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, model.Response{
-			Success: false,
-			Message: "Invalid current credentials",
-		})
-		return
-	}
-
-	// Attempt to change the password. gokrb5's cl.ChangePasswd sends a target
-	// principal, which AD/Samba treat as an admin reset and reject; see kpasswd.
+	// Change the password. This also checks the current password, and needs no
+	// TGT, so users whose password has expired can use it. gokrb5's
+	// cl.ChangePasswd sends a target principal, which AD/Samba treat as an
+	// admin reset and reject; see kpasswd.
 	if err := kpasswd.ChangePassword(cl, req.NewPassword); err != nil {
+		var lerr *kpasswd.LoginError
+		if errors.As(err, &lerr) {
+			c.JSON(http.StatusUnauthorized, model.Response{
+				Success: false,
+				Message: "Invalid current credentials",
+			})
+			return
+		}
 		var kerr *kpasswd.ResultError
 		if errors.As(err, &kerr) && kerr.IsPolicyRejection() {
 			c.JSON(http.StatusBadRequest, model.Response{
