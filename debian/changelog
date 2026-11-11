@@ -1,3 +1,10 @@
+k5pwdserver (0.2.0) unstable; urgency=medium
+
+  * Limit failed logins per user and per client IP.
+  * Trust X-Forwarded-For only from proxies set with -trusted-proxies.
+
+ -- Edward Murrell <edward@murrell.co.nz>  Wed, 11 Nov 2026 20:17:46 +1100
+
 k5pwdserver (0.1.2) unstable; urgency=medium
 
   * Let users with expired passwords change them.
