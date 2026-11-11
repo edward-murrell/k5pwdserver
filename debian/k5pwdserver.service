@@ -7,11 +7,18 @@ Wants=network-online.target
 [Service]
 # Defaults. /etc/default/k5pwdserver overrides them.
 Environment=LISTEN=127.0.0.1:8080
+Environment=USER_FAILURES=5
+Environment=IP_FAILURES=20
+Environment=FAILURE_WINDOW=15m
 Environment=GIN_MODE=release
 EnvironmentFile=-/etc/default/k5pwdserver
 # ${VAR} passes each value as one argument, so titles can contain spaces.
-# Empty values fall back to the built-in defaults.
-ExecStart=/usr/sbin/k5pwdserver -listen ${LISTEN} -tls-cert ${TLS_CERT} -tls-key ${TLS_KEY} -realms ${REALMS} -title ${TITLE}
+# Empty string values fall back to the built-in defaults. The numeric options
+# can't be empty, so their defaults are set above.
+ExecStart=/usr/sbin/k5pwdserver -listen ${LISTEN} -tls-cert ${TLS_CERT} -tls-key ${TLS_KEY} \
+    -realms ${REALMS} -title ${TITLE} \
+    -user-failures ${USER_FAILURES} -ip-failures ${IP_FAILURES} \
+    -failure-window ${FAILURE_WINDOW} -trusted-proxies ${TRUSTED_PROXIES}
 Restart=on-failure
 
 DynamicUser=yes

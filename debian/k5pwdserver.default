@@ -21,3 +21,14 @@
 
 # Page title and heading.
 #TITLE=Change Kerberos Password
+
+# Failed logins allowed per user, and per client IP, in each window. Only
+# wrong passwords, unknown users and locked accounts count. Keep USER_FAILURES
+# below the KDC's lockout threshold. Set either to 0 to turn it off.
+#USER_FAILURES=5
+#IP_FAILURES=20
+#FAILURE_WINDOW=15m
+
+# Comma-separated proxy IPs or CIDRs to trust for X-Forwarded-For. Set this
+# when running behind a reverse proxy, or every user shares the proxy's limit.
+#TRUSTED_PROXIES=127.0.0.1

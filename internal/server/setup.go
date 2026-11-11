@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"net/http"
 
@@ -35,6 +36,11 @@ type Options struct {
 	Realms []string
 	// Title is shown in the browser tab and as the page heading.
 	Title string
+	// Limits caps failed login attempts per user and per client IP.
+	Limits handler.Limits
+	// TrustedProxies lists proxy IPs or CIDRs whose X-Forwarded-For header
+	// gives the client IP. Empty trusts no proxies.
+	TrustedProxies []string
 }
 
 func Setup(krbConfig *config.Config, opts Options) (*gin.Engine, error) {
@@ -51,6 +57,11 @@ func Setup(krbConfig *config.Config, opts Options) (*gin.Engine, error) {
 	indexHTML := page.Bytes()
 
 	router := gin.Default()
+	// Gin trusts X-Forwarded-For from anyone by default, which would let
+	// clients choose their own IP and dodge the per-IP limit.
+	if err := router.SetTrustedProxies(opts.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("trusted proxies: %w", err)
+	}
 
 	// The UI is served from the same origin as the API, so no CORS headers are
 	// sent and browsers will block cross-site scripts from calling the API.
@@ -63,7 +74,7 @@ func Setup(krbConfig *config.Config, opts Options) (*gin.Engine, error) {
 		c.Data(http.StatusOK, "text/javascript; charset=utf-8", vueJS)
 	})
 
-	passwordHandler := handler.NewPasswordHandler(krbConfig, opts.Realms)
+	passwordHandler := handler.NewPasswordHandler(krbConfig, opts.Realms, opts.Limits)
 	router.GET("/api/realms", passwordHandler.GetRealms)
 	router.POST("/api/change-password", passwordHandler.ChangePassword)
 

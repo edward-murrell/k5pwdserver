@@ -7,9 +7,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/edward-murrell/k5pwdserver/internal/kdctest"
 	"github.com/edward-murrell/k5pwdserver/internal/model"
+	"github.com/edward-murrell/k5pwdserver/internal/ratelimit"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
 	"gopkg.in/jcmturner/gokrb5.v7/iana/errorcode"
@@ -50,7 +52,7 @@ func serve(h *PasswordHandler, req *http.Request) *httptest.ResponseRecorder {
 }
 
 func TestGetRealms(t *testing.T) {
-	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM OTHER.ORG"), nil)
+	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM OTHER.ORG"), nil, Limits{})
 	w := serve(h, httptest.NewRequest(http.MethodGet, "/api/realms", nil))
 
 	if w.Code != http.StatusOK {
@@ -69,7 +71,7 @@ func TestGetRealms(t *testing.T) {
 }
 
 func TestGetRealmsNoneConfigured(t *testing.T) {
-	h := NewPasswordHandler(testConfig(t, ""), nil)
+	h := NewPasswordHandler(testConfig(t, ""), nil, Limits{})
 	w := serve(h, httptest.NewRequest(http.MethodGet, "/api/realms", nil))
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", w.Code)
@@ -89,7 +91,7 @@ func TestChangePasswordStatus(t *testing.T) {
 		{"unreachable KDC", "application/json",
 			`{"username":"alice","oldPassword":"old","newPassword":"new"}`, http.StatusInternalServerError},
 	}
-	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM"), nil)
+	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM"), nil, Limits{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/change-password", strings.NewReader(tt.body))
@@ -114,7 +116,7 @@ func TestGetRealmsAllowed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM OTHER.ORG THIRD.NET"), tt.allowed)
+			h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM OTHER.ORG THIRD.NET"), tt.allowed, Limits{})
 			w := serve(h, httptest.NewRequest(http.MethodGet, "/api/realms", nil))
 			var resp model.RealmsResponse
 			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
@@ -131,7 +133,7 @@ func TestGetRealmsAllowed(t *testing.T) {
 }
 
 func TestChangePasswordRealmNotAllowed(t *testing.T) {
-	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM OTHER.ORG"), []string{"OTHER.ORG"})
+	h := NewPasswordHandler(testConfig(t, "EXAMPLE.COM OTHER.ORG"), []string{"OTHER.ORG"}, Limits{})
 	for _, body := range []string{
 		`{"username":"alice","realm":"EXAMPLE.COM","oldPassword":"old","newPassword":"new"}`,
 		`{"username":"alice","realm":"example.com","oldPassword":"old","newPassword":"new"}`,
@@ -147,7 +149,7 @@ func TestChangePasswordRealmNotAllowed(t *testing.T) {
 
 func TestChangePasswordRejectedCredentials(t *testing.T) {
 	kdc := kdctest.Start(t, "EXAMPLE.COM", errorcode.KDC_ERR_PREAUTH_FAILED)
-	h := NewPasswordHandler(kdc.Config(t), nil)
+	h := NewPasswordHandler(kdc.Config(t), nil, Limits{})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/change-password",
 		strings.NewReader(`{"username":"alice","oldPassword":"wrong","newPassword":"new"}`))
@@ -161,6 +163,74 @@ func TestChangePasswordRejectedCredentials(t *testing.T) {
 	for _, svc := range kdc.Services() {
 		if svc != "kadmin/changepw" {
 			t.Errorf("handler requested a ticket for %s, want only kadmin/changepw", svc)
+		}
+	}
+}
+
+func changeRequest(user, remoteAddr string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/api/change-password",
+		strings.NewReader(`{"username":"`+user+`","oldPassword":"wrong","newPassword":"new"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = remoteAddr
+	return req
+}
+
+func TestUserLimit(t *testing.T) {
+	kdc := kdctest.Start(t, "EXAMPLE.COM", errorcode.KDC_ERR_PREAUTH_FAILED)
+	h := NewPasswordHandler(kdc.Config(t), nil, Limits{User: ratelimit.New(2, time.Minute)})
+
+	for i, want := range []int{http.StatusUnauthorized, http.StatusUnauthorized, http.StatusTooManyRequests} {
+		w := serve(h, changeRequest("alice", "192.0.2.1:1000"))
+		if w.Code != want {
+			t.Fatalf("attempt %d: status = %d, want %d", i+1, w.Code, want)
+		}
+	}
+	asked := len(kdc.Services())
+
+	// Usernames are matched case-insensitively, and from any IP.
+	w := serve(h, changeRequest("ALICE", "192.0.2.99:1000"))
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("ALICE from another IP: status = %d, want 429", w.Code)
+	}
+	if ra := w.Header().Get("Retry-After"); ra == "" || ra == "0" {
+		t.Errorf("Retry-After = %q, want seconds until the window ends", ra)
+	}
+	if len(kdc.Services()) != asked {
+		t.Error("a limited attempt still reached the KDC")
+	}
+
+	if w := serve(h, changeRequest("bob", "192.0.2.1:1000")); w.Code != http.StatusUnauthorized {
+		t.Errorf("other user: status = %d, want 401", w.Code)
+	}
+}
+
+func TestIPLimit(t *testing.T) {
+	kdc := kdctest.Start(t, "EXAMPLE.COM", errorcode.KDC_ERR_PREAUTH_FAILED)
+	h := NewPasswordHandler(kdc.Config(t), nil, Limits{IP: ratelimit.New(2, time.Minute)})
+
+	for i, user := range []string{"alice", "bob"} {
+		if w := serve(h, changeRequest(user, "192.0.2.1:1000")); w.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: status = %d, want 401", i+1, w.Code)
+		}
+	}
+	if w := serve(h, changeRequest("carol", "192.0.2.1:2000")); w.Code != http.StatusTooManyRequests {
+		t.Errorf("third user from the same IP: status = %d, want 429", w.Code)
+	}
+	if w := serve(h, changeRequest("carol", "192.0.2.2:1000")); w.Code != http.StatusUnauthorized {
+		t.Errorf("other IP: status = %d, want 401", w.Code)
+	}
+}
+
+func TestLimitIgnoresOtherFailures(t *testing.T) {
+	// A KDC fault isn't a failed login, so it mustn't use up attempts.
+	kdc := kdctest.Start(t, "EXAMPLE.COM", errorcode.KDC_ERR_ETYPE_NOSUPP)
+	h := NewPasswordHandler(kdc.Config(t), nil, Limits{
+		User: ratelimit.New(1, time.Minute),
+		IP:   ratelimit.New(1, time.Minute),
+	})
+	for i := 0; i < 3; i++ {
+		if w := serve(h, changeRequest("alice", "192.0.2.1:1000")); w.Code != http.StatusInternalServerError {
+			t.Fatalf("attempt %d: status = %d, want 500", i+1, w.Code)
 		}
 	}
 }

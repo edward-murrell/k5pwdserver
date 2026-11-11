@@ -26,13 +26,17 @@ Open `http://<host>:8080/` in a browser.
 
 ## Options
 
-| Flag        | Default                    | Description                                        |
-|-------------|----------------------------|----------------------------------------------------|
-| `-listen`   | `:8080`                    | Address to listen on, as `host:port`.              |
-| `-tls-cert` |                            | PEM certificate file. Set with `-tls-key` for HTTPS. |
-| `-tls-key`  |                            | PEM private key file.                              |
-| `-realms`   | every realm in `krb5.conf` | Comma-separated realms users may pick.             |
-| `-title`    | `Change Kerberos Password` | Page title and heading.                            |
+| Flag               | Default                    | Description                                           |
+|--------------------|----------------------------|-------------------------------------------------------|
+| `-listen`          | `:8080`                    | Address to listen on, as `host:port`.                 |
+| `-tls-cert`        |                            | PEM certificate file. Set with `-tls-key` for HTTPS.  |
+| `-tls-key`         |                            | PEM private key file.                                 |
+| `-realms`          | every realm in `krb5.conf` | Comma-separated realms users may pick.                |
+| `-title`           | `Change Kerberos Password` | Page title and heading.                               |
+| `-user-failures`   | `5`                        | Failed logins allowed per user in each window. `0` turns it off. |
+| `-ip-failures`     | `20`                       | Failed logins allowed per client IP in each window. `0` turns it off. |
+| `-failure-window`  | `15m`                      | Period over which failed logins are counted.          |
+| `-trusted-proxies` |                            | Comma-separated proxy IPs or CIDRs to trust for `X-Forwarded-For`. |
 
 Realm names are case-sensitive. If `krb5.conf`'s default realm isn't in
 `-realms`, the first listed realm becomes the default.
@@ -40,6 +44,24 @@ Realm names are case-sensitive. If `krb5.conf`'s default realm isn't in
 ```sh
 go run ./cmd/pwdserver -realms EXAMPLE.COM,OTHER.ORG -title "Example Corp passwords"
 ```
+
+## Failed login limits
+
+Each change request checks the current password with the KDC, so the server
+limits failed logins. Only wrong passwords, unknown users, and disabled or
+locked accounts count. Once a user or client IP reaches its limit, requests
+get a 429 until the window ends, and don't reach the KDC.
+
+- Keep `-user-failures` below the KDC's lockout threshold. Then guessing
+  through this page can't lock the account in AD. Anyone can still use up a
+  user's attempts here, which blocks that user on this page until the window
+  ends.
+- Usernames are matched without case, because AD ignores case.
+- Counts are kept in memory, so they reset when the server restarts.
+
+Behind a reverse proxy, every request comes from the proxy's IP. Set
+`-trusted-proxies` to the proxy's address so each client gets its own limit.
+The server ignores `X-Forwarded-For` from anyone else.
 
 ## TLS
 
@@ -66,6 +88,8 @@ TLS_CERT=/etc/letsencrypt/live/example.com/fullchain.pem
 TLS_KEY=/etc/letsencrypt/live/example.com/privkey.pem
 REALMS=EXAMPLE.COM
 TITLE=Example Corp passwords
+USER_FAILURES=3
+TRUSTED_PROXIES=127.0.0.1
 ```
 
 The service runs as a dynamic user, so it must be able to read the TLS key.
@@ -98,7 +122,8 @@ The container runs as a non-root user, so the key must be readable by UID
   `realm` is optional and defaults to the default realm.
   Returns 200 on success, 401 for wrong current credentials, 400 if the new
   password fails the KDC's password policy or the realm isn't allowed, 415 if
-  the request isn't `application/json`, and 500 for other errors.
+  the request isn't `application/json`, 429 with `Retry-After` after too many
+  failed logins, and 500 for other errors.
 
 ## More documentation
 

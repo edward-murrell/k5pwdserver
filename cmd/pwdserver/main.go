@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/edward-murrell/k5pwdserver/internal/handler"
+	"github.com/edward-murrell/k5pwdserver/internal/ratelimit"
 	"github.com/edward-murrell/k5pwdserver/internal/server"
 	"github.com/edward-murrell/k5pwdserver/internal/tlscert"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
@@ -20,6 +22,10 @@ func main() {
 	tlsKey := flag.String("tls-key", "", "TLS private key file (PEM)")
 	title := flag.String("title", server.DefaultTitle, "page title and heading")
 	realms := flag.String("realms", "", "comma-separated realms users may change passwords in (default: every realm in krb5.conf)")
+	userFailures := flag.Int("user-failures", 5, "failed logins allowed per user in each -failure-window; 0 disables")
+	ipFailures := flag.Int("ip-failures", 20, "failed logins allowed per client IP in each -failure-window; 0 disables")
+	failureWindow := flag.Duration("failure-window", 15*time.Minute, "period over which failed logins are counted")
+	trustedProxies := flag.String("trusted-proxies", "", "comma-separated proxy IPs or CIDRs whose X-Forwarded-For header is trusted")
 	flag.Parse()
 
 	if (*tlsCert == "") != (*tlsKey == "") {
@@ -32,7 +38,15 @@ func main() {
 		log.Fatalf("Error loading Kerberos config: %v", err)
 	}
 
-	opts := server.Options{Realms: splitList(*realms), Title: *title}
+	opts := server.Options{
+		Realms: splitList(*realms),
+		Title:  *title,
+		Limits: handler.Limits{
+			User: ratelimit.New(*userFailures, *failureWindow),
+			IP:   ratelimit.New(*ipFailures, *failureWindow),
+		},
+		TrustedProxies: splitList(*trustedProxies),
+	}
 	for _, realm := range opts.Realms {
 		if !slices.ContainsFunc(cfg.Realms, func(r config.Realm) bool { return r.Realm == realm }) {
 			log.Printf("Warning: realm %s is not in /etc/krb5.conf", realm)

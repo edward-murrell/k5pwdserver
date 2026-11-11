@@ -77,3 +77,41 @@ func TestVueAsset(t *testing.T) {
 		t.Error("asset is not Vue 3.5.44")
 	}
 }
+
+func TestClientIPTrustsOnlyConfiguredProxies(t *testing.T) {
+	tests := []struct {
+		name    string
+		trusted []string
+		want    string
+	}{
+		// Without trusted proxies, a forged header can't dodge the IP limit.
+		{"no trusted proxies", nil, "192.0.2.1"},
+		{"trusted proxy", []string{"192.0.2.0/24"}, "203.0.113.7"},
+		{"other proxy trusted", []string{"198.51.100.1"}, "192.0.2.1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router, err := Setup(&config.Config{}, Options{TrustedProxies: tt.trusted})
+			if err != nil {
+				t.Fatal(err)
+			}
+			router.GET("/test-client-ip", func(c *gin.Context) { c.String(http.StatusOK, c.ClientIP()) })
+
+			req := httptest.NewRequest(http.MethodGet, "/test-client-ip", nil)
+			req.Header.Set("X-Forwarded-For", "203.0.113.7")
+			req.RemoteAddr = "192.0.2.1:1000"
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if got := w.Body.String(); got != tt.want {
+				t.Errorf("client IP = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSetupRejectsBadTrustedProxy(t *testing.T) {
+	if _, err := Setup(&config.Config{}, Options{TrustedProxies: []string{"not-an-ip"}}); err == nil {
+		t.Error("Setup accepted an invalid trusted proxy")
+	}
+}

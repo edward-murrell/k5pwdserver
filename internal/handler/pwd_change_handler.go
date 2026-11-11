@@ -2,11 +2,18 @@ package handler
 
 import (
 	"errors"
+	"fmt"
+	"log"
+	"math"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/edward-murrell/k5pwdserver/internal/kpasswd"
 	"github.com/edward-murrell/k5pwdserver/internal/model"
+	"github.com/edward-murrell/k5pwdserver/internal/ratelimit"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/jcmturner/gokrb5.v7/client"
 	"gopkg.in/jcmturner/gokrb5.v7/config"
@@ -15,14 +22,25 @@ import (
 type PasswordHandler struct {
 	krbConfig     *config.Config
 	allowedRealms []string
+	limits        Limits
+}
+
+// Limits caps failed login attempts. Only attempts the KDC rejects for bad
+// credentials count. A nil limiter doesn't limit.
+type Limits struct {
+	// User is keyed by the lower-cased username and the realm.
+	User *ratelimit.Limiter
+	// IP is keyed by the client's IP address.
+	IP *ratelimit.Limiter
 }
 
 // NewPasswordHandler returns a handler for the given Kerberos config. If
 // allowedRealms is not empty, only those realms are offered and accepted.
-func NewPasswordHandler(cfg *config.Config, allowedRealms []string) *PasswordHandler {
+func NewPasswordHandler(cfg *config.Config, allowedRealms []string, limits Limits) *PasswordHandler {
 	return &PasswordHandler{
 		krbConfig:     cfg,
 		allowedRealms: allowedRealms,
+		limits:        limits,
 	}
 }
 
@@ -103,6 +121,22 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
+	// Reserve an attempt before contacting the KDC. It's handed back below
+	// unless the KDC rejects the credentials.
+	// Usernames are case-insensitive on AD, so they're lower-cased here.
+	userKey := strings.ToLower(req.Username) + "@" + realm
+	ipKey := c.ClientIP()
+	if !h.takeAttempt(c, userKey, ipKey) {
+		return
+	}
+	failedLogin := false
+	defer func() {
+		if !failedLogin {
+			h.limits.User.Refund(userKey)
+			h.limits.IP.Refund(ipKey)
+		}
+	}()
+
 	// Create a new client instance with the user's current credentials
 	cl := client.NewClientWithPassword(
 		req.Username,
@@ -119,6 +153,7 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	if err := kpasswd.ChangePassword(cl, req.NewPassword); err != nil {
 		var lerr *kpasswd.LoginError
 		if errors.As(err, &lerr) {
+			failedLogin = true
 			c.JSON(http.StatusUnauthorized, model.Response{
 				Success: false,
 				Message: "Invalid current credentials",
@@ -145,4 +180,34 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		Message: "Password changed successfully",
 	})
 
+}
+
+// takeAttempt reserves an attempt for the user and the client IP. If either
+// has no attempts left, it writes a 429 and returns false.
+func (h *PasswordHandler) takeAttempt(c *gin.Context, userKey, ipKey string) bool {
+	if ok, wait := h.limits.IP.Take(ipKey); !ok {
+		log.Printf("Too many failed attempts from %s", ipKey)
+		tooManyAttempts(c, wait)
+		return false
+	}
+	if ok, wait := h.limits.User.Take(userKey); !ok {
+		h.limits.IP.Refund(ipKey)
+		log.Printf("Too many failed attempts for %s, latest from %s", userKey, ipKey)
+		tooManyAttempts(c, wait)
+		return false
+	}
+	return true
+}
+
+func tooManyAttempts(c *gin.Context, wait time.Duration) {
+	c.Header("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+	minutes := int(math.Ceil(wait.Minutes()))
+	unit := "minutes"
+	if minutes <= 1 {
+		minutes, unit = 1, "minute"
+	}
+	c.JSON(http.StatusTooManyRequests, model.Response{
+		Success: false,
+		Message: fmt.Sprintf("Too many failed attempts. Try again in %d %s.", minutes, unit),
+	})
 }
