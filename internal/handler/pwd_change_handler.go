@@ -15,8 +15,8 @@ import (
 	"github.com/edward-murrell/k5pwdserver/internal/model"
 	"github.com/edward-murrell/k5pwdserver/internal/ratelimit"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/jcmturner/gokrb5.v7/client"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"github.com/jcmturner/gokrb5/v8/client"
+	"github.com/jcmturner/gokrb5/v8/config"
 )
 
 type PasswordHandler struct {
@@ -138,7 +138,7 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	}()
 
 	// Create a new client instance with the user's current credentials
-	cl := client.NewClientWithPassword(
+	cl := client.NewWithPassword(
 		req.Username,
 		realm,
 		req.OldPassword,

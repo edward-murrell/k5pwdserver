@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/edward-murrell/k5pwdserver/internal/kdctest"
-	"gopkg.in/jcmturner/gokrb5.v7/client"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
-	"gopkg.in/jcmturner/gokrb5.v7/iana/errorcode"
-	"gopkg.in/jcmturner/gokrb5.v7/krberror"
+	"github.com/jcmturner/gokrb5/v8/client"
+	"github.com/jcmturner/gokrb5/v8/config"
+	"github.com/jcmturner/gokrb5/v8/iana/errorcode"
+	"github.com/jcmturner/gokrb5/v8/krberror"
 )
 
 // fakeServer accepts one framed request and replies with the given payload,
@@ -88,7 +88,7 @@ func TestSendTCPFailsOver(t *testing.T) {
 	good, _ := fakeServer(t, uint32(len(reply)), reply)
 	bad := closedAddr(t)
 
-	cfg, err := config.NewConfigFromString(`[libdefaults]
+	cfg, err := config.NewFromString(`[libdefaults]
  default_realm = EXAMPLE.COM
  dns_lookup_kdc = false
 [realms]
@@ -101,7 +101,7 @@ func TestSendTCPFailsOver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl := client.NewClientWithPassword("user", "EXAMPLE.COM", "pw", cfg)
+	cl := client.NewWithPassword("user", "EXAMPLE.COM", "pw", cfg)
 
 	rb, err := sendTCP(cl, "EXAMPLE.COM", []byte("req"))
 	if err != nil {
@@ -140,7 +140,7 @@ func TestChangePasswordKDCErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			kdc := kdctest.Start(t, "EXAMPLE.COM", tt.code)
-			cl := client.NewClientWithPassword("alice", "EXAMPLE.COM", "pw", kdc.Config(t), client.DisablePAFXFAST(true))
+			cl := client.NewWithPassword("alice", "EXAMPLE.COM", "pw", kdc.Config(t), client.DisablePAFXFAST(true))
 
 			err := ChangePassword(cl, "new")
 			var lerr *LoginError

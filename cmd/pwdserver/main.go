@@ -13,7 +13,7 @@ import (
 	"github.com/edward-murrell/k5pwdserver/internal/ratelimit"
 	"github.com/edward-murrell/k5pwdserver/internal/server"
 	"github.com/edward-murrell/k5pwdserver/internal/tlscert"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"github.com/jcmturner/gokrb5/v8/config"
 )
 
 func main() {

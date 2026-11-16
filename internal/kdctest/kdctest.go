@@ -10,14 +10,14 @@ import (
 	"testing"
 
 	"github.com/jcmturner/gofork/encoding/asn1"
-	"gopkg.in/jcmturner/gokrb5.v7/asn1tools"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
-	"gopkg.in/jcmturner/gokrb5.v7/iana/asnAppTag"
-	"gopkg.in/jcmturner/gokrb5.v7/iana/errorcode"
-	"gopkg.in/jcmturner/gokrb5.v7/iana/etypeID"
-	"gopkg.in/jcmturner/gokrb5.v7/iana/patype"
-	"gopkg.in/jcmturner/gokrb5.v7/messages"
-	"gopkg.in/jcmturner/gokrb5.v7/types"
+	"github.com/jcmturner/gokrb5/v8/asn1tools"
+	"github.com/jcmturner/gokrb5/v8/config"
+	"github.com/jcmturner/gokrb5/v8/iana/asnAppTag"
+	"github.com/jcmturner/gokrb5/v8/iana/errorcode"
+	"github.com/jcmturner/gokrb5/v8/iana/etypeID"
+	"github.com/jcmturner/gokrb5/v8/iana/patype"
+	"github.com/jcmturner/gokrb5/v8/messages"
+	"github.com/jcmturner/gokrb5/v8/types"
 )
 
 // KDC is a fake TCP KDC for one realm.
@@ -57,7 +57,7 @@ func Start(t *testing.T, realm string, code int32) *KDC {
 // KDC over TCP.
 func (k *KDC) Config(t *testing.T) *config.Config {
 	t.Helper()
-	cfg, err := config.NewConfigFromString(`[libdefaults]
+	cfg, err := config.NewFromString(`[libdefaults]
  default_realm = ` + k.realm + `
  dns_lookup_kdc = false
  udp_preference_limit = 1

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"github.com/jcmturner/gokrb5/v8/config"
 )
 
 func get(t *testing.T, opts Options, path string) *httptest.ResponseRecorder {

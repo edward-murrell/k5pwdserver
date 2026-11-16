@@ -13,8 +13,8 @@ import (
 	"github.com/edward-murrell/k5pwdserver/internal/model"
 	"github.com/edward-murrell/k5pwdserver/internal/ratelimit"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
-	"gopkg.in/jcmturner/gokrb5.v7/iana/errorcode"
+	"github.com/jcmturner/gokrb5/v8/config"
+	"github.com/jcmturner/gokrb5/v8/iana/errorcode"
 )
 
 func init() {
@@ -35,7 +35,7 @@ func testConfig(t *testing.T, realms string) *config.Config {
 	for _, r := range strings.Fields(realms) {
 		s += " " + r + " = {\n  kdc = " + kdc + "\n }\n"
 	}
-	cfg, err := config.NewConfigFromString(s)
+	cfg, err := config.NewFromString(s)
 	if err != nil {
 		t.Fatal(err)
 	}

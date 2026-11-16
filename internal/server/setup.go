@@ -10,7 +10,7 @@ import (
 	"github.com/edward-murrell/k5pwdserver/internal/handler"
 	"github.com/edward-murrell/k5pwdserver/internal/version"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"github.com/jcmturner/gokrb5/v8/config"
 )
 
 // DefaultTitle is the page title when none is configured.
