@@ -1,3 +1,9 @@
+k5pwdserver (0.3.0) unstable; urgency=medium
+
+  * Upgrade gokrb5 to v8.
+
+ -- Edward Murrell <edward@murrell.co.nz>  Mon, 16 Nov 2026 19:57:56 +1100
+
 k5pwdserver (0.2.0) unstable; urgency=medium
 
   * Limit failed logins per user and per client IP.
